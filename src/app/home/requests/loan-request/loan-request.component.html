@@ -1,0 +1,44 @@
+<div class="request-form-container">
+  <h2>{{ editMode ? 'Modifier la demande de prêt' : 'Nouvelle demande de prêt' }}</h2>
+  
+  <form [formGroup]="loanForm" (ngSubmit)="onSubmit()">
+    <div class="form-group">
+      <label for="loanAmount">Montant du prêt (€)</label>
+      <input type="number" id="loanAmount" formControlName="loanAmount" class="form-control">
+      <div class="error-message" *ngIf="loanForm.get('loanAmount')?.invalid && loanForm.get('loanAmount')?.touched">
+        Le montant du prêt est requis et doit être positif
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="loanReason">Motif du prêt</label>
+      <textarea id="loanReason" formControlName="loanReason" class="form-control"></textarea>
+      <div class="error-message" *ngIf="loanForm.get('loanReason')?.invalid && loanForm.get('loanReason')?.touched">
+        Le motif du prêt est requis
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="monthlyPayment">Mensualité (€)</label>
+      <input type="number" id="monthlyPayment" formControlName="monthlyPayment" class="form-control">
+      <div class="error-message" *ngIf="loanForm.get('monthlyPayment')?.invalid && loanForm.get('monthlyPayment')?.touched">
+        La mensualité est requise et doit être positive
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="duration">Durée (mois)</label>
+      <input type="number" id="duration" formControlName="duration" class="form-control">
+      <div class="error-message" *ngIf="loanForm.get('duration')?.invalid && loanForm.get('duration')?.touched">
+        La durée est requise et doit être d'au moins 1 mois
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn-cancel" (click)="onCancel()">Annuler</button>
+      <button type="submit" class="btn-submit" [disabled]="!loanForm.valid">
+        {{ editMode ? 'Modifier' : 'Soumettre' }}
+      </button>
+    </div>
+  </form>
+</div>

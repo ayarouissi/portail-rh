@@ -1,0 +1,35 @@
+<div class="request-form-container">
+  <h2>{{ editMode ? 'Modifier la demande de document' : 'Nouvelle demande de document' }}</h2>
+  
+  <form [formGroup]="documentForm" (ngSubmit)="onSubmit()">
+    <div class="form-group">
+      <label for="documentType">Type de document</label>
+      <select id="documentType" formControlName="documentType" class="form-control">
+        <option value="">Sélectionnez un type de document</option>
+        <option *ngFor="let type of documentTypes" [value]="type">{{ type }}</option>
+      </select>
+      <div class="error-message" *ngIf="documentForm.get('documentType')?.invalid && documentForm.get('documentType')?.touched">
+        Le type de document est requis
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input type="checkbox" formControlName="urgency">
+        Demande urgente
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label for="additionalInfo">Informations supplémentaires</label>
+      <textarea id="additionalInfo" formControlName="additionalInfo" class="form-control" rows="4"></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn-cancel" (click)="onCancel()">Annuler</button>
+      <button type="submit" class="btn-submit" [disabled]="!documentForm.valid">
+        {{ editMode ? 'Modifier' : 'Soumettre' }}
+      </button>
+    </div>
+  </form>
+</div>
