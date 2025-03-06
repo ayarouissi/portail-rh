@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { FormGroup, FormControl, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RequestsService } from '../requests.service';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-loan-request',
@@ -12,50 +12,53 @@ import { RequestsService } from '../requests.service';
   styleUrls: ['./loan-request.component.scss']
 })
 export class LoanRequestComponent implements OnInit {
-  loanForm: FormGroup;
+  requestId: string | null = null;
   editMode = false;
-  requestId: number | null = null;
+  loanForm: FormGroup;
 
   constructor(
-    private fb: FormBuilder,
-    private requestsService: RequestsService,
+    private route: ActivatedRoute,
     private router: Router,
-    private route: ActivatedRoute
+    private requestsService: RequestsService
   ) {
-    this.loanForm = this.fb.group({
-      loanAmount: ['', [Validators.required, Validators.min(0)]],
-      loanReason: ['', Validators.required],
-      monthlyPayment: ['', [Validators.required, Validators.min(0)]],
-      duration: ['', [Validators.required, Validators.min(1)]]
+    this.loanForm = new FormGroup({
+      loanAmount: new FormControl(0, [Validators.required, Validators.min(0)]),
+      loanReason: new FormControl('', [Validators.required]),
+      monthlyPayment: new FormControl(0, [Validators.required, Validators.min(0)]),
+      duration: new FormControl(12, [Validators.required, Validators.min(1), Validators.max(60)])
     });
   }
 
   ngOnInit() {
-    const id = this.route.snapshot.params['id'];
+    const id = this.route.snapshot.paramMap.get('id');
     if (id) {
+      this.requestId = id;
       this.editMode = true;
-      this.requestId = +id;
-      const request = this.requestsService.getRequestById(this.requestId);
+      const request = this.requestsService.getRequestById(id);
       if (request && request.details) {
         this.loanForm.patchValue({
-          loanAmount: request.details.loanAmount,
-          loanReason: request.details.loanReason,
-          monthlyPayment: request.details.monthlyPayment,
-          duration: request.details.duration
+          loanAmount: request.details.loanAmount || 0,
+          loanReason: request.details.loanReason || '',
+          monthlyPayment: request.details.monthlyPayment || 0,
+          duration: request.details.duration || 12
         });
       }
     }
   }
 
   onSubmit() {
-    if (this.loanForm.valid) {
-      if (this.editMode && this.requestId) {
-        this.requestsService.updateLoanRequest(this.requestId, this.loanForm.value);
-      } else {
-        this.requestsService.addLoanRequest(this.loanForm.value);
-      }
-      this.router.navigate(['/home/requests']);
+    if (!this.loanForm.valid) {
+      return;
     }
+
+    const formData = this.loanForm.value;
+    
+    if (this.requestId) {
+      this.requestsService.updateLoanRequest(this.requestId, formData);
+    } else {
+      this.requestsService.addLoanRequest(formData);
+    }
+    this.router.navigate(['/home/requests']);
   }
 
   onCancel() {

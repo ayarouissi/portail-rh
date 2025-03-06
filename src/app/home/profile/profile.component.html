@@ -1,78 +1,186 @@
-<div class="profile-container">
+<div class="profile-container" *ngIf="user">
   <div class="profile-header">
     <div class="profile-image">
       <div class="image-container">
-        <img [src]="userProfile.image || 'assets/profile-placeholder.png'" alt="Profile">
-        <div class="image-overlay">
-          <label for="profile-upload" class="change-photo">
-            <i class="fas fa-camera"></i>
-            Changer
+        <img [src]="user.profileImage || 'assets/profile-placeholder.png'" alt="Photo de profil">
+        <div class="upload-button">
+          <label for="profile-upload" class="upload-label">
+            <i class='bx bx-upload'></i>
+            Choisir une photo
           </label>
-          <input type="file" id="profile-upload" hidden (change)="onImageChange($event)">
+          <input 
+            type="file" 
+            id="profile-upload" 
+            (change)="onImageChange($event)" 
+            accept="image/*"
+            capture="user"
+          >
         </div>
       </div>
     </div>
     <div class="profile-info">
-      <h2>{{ userProfile.name }}</h2>
-      <p class="position">{{ userProfile.position }}</p>
-      <p class="department">{{ userProfile.department }}</p>
+      <h2>{{ user.firstName }} {{ user.lastName }}</h2>
+      <p class="position">{{ user.professionalInfo.position }}</p>
+      <p class="department">{{ user.professionalInfo.department }}</p>
+      <div class="edit-controls">
+        <button *ngIf="!editMode" class="btn-edit" (click)="toggleEditMode()">
+          <i class='bx bx-edit'></i>
+          Modifier le profil
+        </button>
+        <ng-container *ngIf="editMode">
+          <button class="btn-save" (click)="saveProfile()">
+            <i class='bx bx-save'></i>
+            Enregistrer
+          </button>
+          <button class="btn-cancel" (click)="cancelEdit()">
+            <i class='bx bx-x'></i>
+            Annuler
+          </button>
+        </ng-container>
+      </div>
     </div>
   </div>
 
-  <div class="profile-details">
+  <div class="profile-content">
+    <!-- Informations Personnelles -->
     <div class="section">
       <h3>Informations Personnelles</h3>
       <div class="form-grid">
         <div class="form-group">
-          <label>Nom complet</label>
-          <input type="text" [(ngModel)]="userProfile.name" name="name" placeholder="Votre nom complet">
-        </div>
-        <div class="form-group">
-          <label>Email</label>
-          <input type="email" [(ngModel)]="userProfile.email" name="email" placeholder="Votre email">
-        </div>
-        <div class="form-group">
-          <label>Téléphone</label>
-          <input type="tel" [(ngModel)]="userProfile.phone" name="phone" placeholder="Votre numéro de téléphone">
+          <label>CIN</label>
+          <input type="text" [(ngModel)]="user.personalInfo.cin" [readonly]="!editMode">
         </div>
         <div class="form-group">
           <label>Date de naissance</label>
-          <input type="date" [(ngModel)]="userProfile.birthDate" name="birthDate">
+          <input type="date" [(ngModel)]="user.personalInfo.dateOfBirth" [readonly]="!editMode">
+        </div>
+        <div class="form-group">
+          <label>Lieu de naissance</label>
+          <input type="text" [(ngModel)]="user.personalInfo.placeOfBirth" [readonly]="!editMode">
+        </div>
+        <div class="form-group">
+          <label>Nationalité</label>
+          <input type="text" [(ngModel)]="user.personalInfo.nationality" [readonly]="!editMode">
+        </div>
+        <div class="form-group">
+          <label>Situation familiale</label>
+          <select [(ngModel)]="user.personalInfo.maritalStatus" [disabled]="!editMode">
+            <option *ngFor="let option of maritalStatusOptions" [value]="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Nombre d'enfants</label>
+          <input type="number" [(ngModel)]="user.personalInfo.numberOfChildren" [readonly]="!editMode">
+        </div>
+        <div class="form-group">
+          <label>Adresse</label>
+          <input type="text" [(ngModel)]="user.personalInfo.address" [readonly]="!editMode">
+        </div>
+        <div class="form-group">
+          <label>Ville</label>
+          <input type="text" [(ngModel)]="user.personalInfo.city" [readonly]="!editMode">
+        </div>
+        <div class="form-group">
+          <label>Pays</label>
+          <input type="text" [(ngModel)]="user.personalInfo.country" [readonly]="!editMode">
+        </div>
+        <div class="form-group">
+          <label>Téléphone</label>
+          <input type="tel" [(ngModel)]="user.personalInfo.phoneNumber" [readonly]="!editMode">
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h4>Contact d'urgence</h4>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nom complet</label>
+            <input type="text" [(ngModel)]="user.personalInfo.emergencyContact.name" [readonly]="!editMode">
+          </div>
+          <div class="form-group">
+            <label>Relation</label>
+            <input type="text" [(ngModel)]="user.personalInfo.emergencyContact.relationship" [readonly]="!editMode">
+          </div>
+          <div class="form-group">
+            <label>Téléphone</label>
+            <input type="tel" [(ngModel)]="user.personalInfo.emergencyContact.phoneNumber" [readonly]="!editMode">
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- Informations Professionnelles -->
     <div class="section">
       <h3>Informations Professionnelles</h3>
       <div class="form-grid">
         <div class="form-group">
+          <label>Matricule</label>
+          <input type="text" [(ngModel)]="user.professionalInfo.employeeId" readonly>
+        </div>
+        <div class="form-group">
           <label>Département</label>
-          <input type="text" [(ngModel)]="userProfile.department" name="department" readonly>
+          <input type="text" [(ngModel)]="user.professionalInfo.department" readonly>
         </div>
         <div class="form-group">
           <label>Poste</label>
-          <input type="text" [(ngModel)]="userProfile.position" name="position" readonly>
+          <input type="text" [(ngModel)]="user.professionalInfo.position" readonly>
+        </div>
+        <div class="form-group">
+          <label>Grade</label>
+          <input type="text" [(ngModel)]="user.professionalInfo.grade" readonly>
         </div>
         <div class="form-group">
           <label>Date d'embauche</label>
-          <input type="date" [(ngModel)]="userProfile.hireDate" name="hireDate" readonly>
+          <input type="date" [value]="formatDate(user.professionalInfo.joinDate)" readonly>
         </div>
         <div class="form-group">
-          <label>Matricule</label>
-          <input type="text" [(ngModel)]="userProfile.employeeId" name="employeeId" readonly>
+          <label>Type de contrat</label>
+          <select [(ngModel)]="user.professionalInfo.contractType" disabled>
+            <option *ngFor="let option of contractTypeOptions" [value]="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Salaire</label>
+          <input type="number" [(ngModel)]="user.professionalInfo.salary" readonly>
+        </div>
+        <div class="form-group">
+          <label>RIB</label>
+          <input type="text" [(ngModel)]="user.professionalInfo.rib" readonly>
+        </div>
+        <div class="form-group">
+          <label>Banque</label>
+          <input type="text" [(ngModel)]="user.professionalInfo.bankName" readonly>
+        </div>
+        <div class="form-group">
+          <label>N° CNSS</label>
+          <input type="text" [(ngModel)]="user.professionalInfo.cnss" readonly>
+        </div>
+        <div class="form-group">
+          <label>N° Mutuelle</label>
+          <input type="text" [(ngModel)]="user.professionalInfo.mutuelle" readonly>
         </div>
       </div>
     </div>
 
-    <div class="action-buttons">
-      <button class="btn-save" (click)="saveProfile()">
-        <i class="fas fa-save"></i>
-        Enregistrer les modifications
-      </button>
-      <button class="btn-password" (click)="changePassword()">
-        <i class="fas fa-key"></i>
-        Changer le mot de passe
-      </button>
+    <!-- Sécurité -->
+    <div class="section">
+      <h3>Sécurité</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="user.email" readonly>
+        </div>
+        <div class="form-group">
+          <button class="btn-password" (click)="changePassword()">
+            <i class='bx bx-key'></i>
+            Changer le mot de passe
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>

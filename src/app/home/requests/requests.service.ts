@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { AuthService } from '../../auth/auth.service';
 
 export interface RequestDetails {
   startDate?: string;
@@ -29,11 +30,12 @@ export interface RequestDetails {
 }
 
 export interface Request {
-  id: number;
+  id: string;
+  userId: string;
   type: string;
-  status: string;
-  date: string;
   description: string;
+  status: 'En attente' | 'Approuvée' | 'Rejetée';
+  date: string;
   details: RequestDetails;
 }
 
@@ -41,84 +43,387 @@ export interface Request {
   providedIn: 'root'
 })
 export class RequestsService {
-  private requests: Request[] = [
-    {
-      id: 1,
-      type: 'Congé annuel',
-      status: 'En attente',
-      date: '2025-02-20',
-      description: 'Demande de congé pour 2 jours ouvrables',
-      details: {
-        startDate: '2025-02-20',
-        endDate: '2025-02-25',
-        leaveType: 'paid',
-        reason: 'Vacances',
-        workingDays: 2
-      }
-    },
-    {
-      id: 2,
-      type: 'Formation',
-      status: 'Approuvée',
-      date: '2025-02-15',
-      description: 'Formation Angular avancé',
-      details: {
-        title: 'Formation Angular',
-        organization: 'Formation Pro',
-        startDate: '2025-03-01',
-        endDate: '2025-03-05',
-        trainingType: 'technical',
-        objectives: 'Maîtriser Angular',
-        cost: 2000
-      }
-    },
-    {
-      id: 3,
-      type: 'Attestation de travail',
-      status: 'Rejetée',
-      date: '2025-02-10',
-      description: 'Demande d\'attestation de travail',
-      details: {
-        purpose: 'other',
-        language: 'français',
-        copies: 2,
-        comments: 'Demande d\'attestation de travail'
-      }
-    }
-  ];
+  private requestsSubject = new BehaviorSubject<Request[]>([]);
+  private requests: Request[] = [];
 
-  private requestsSubject = new BehaviorSubject<Request[]>(this.requests);
-
-  constructor() {}
-
-  getRequests() {
-    return this.requestsSubject.asObservable();
-  }
-
-  getRequestById(id: number): Request | undefined {
-    return this.requests.find(r => r.id === id);
-  }
-
-  updateRequest(updatedRequest: Request) {
-    const index = this.requests.findIndex(r => r.id === updatedRequest.id);
-    if (index !== -1) {
-      this.requests[index] = updatedRequest;
+  constructor(private authService: AuthService) {
+    // Charger les demandes depuis le localStorage
+    const storedRequests = localStorage.getItem('requests');
+    if (storedRequests) {
+      this.requests = JSON.parse(storedRequests);
       this.requestsSubject.next(this.requests);
     }
   }
 
-  addRequest(request: Partial<Request>) {
+  getRequests(): Observable<Request[]> {
+    // Ne retourner que les demandes de l'utilisateur connecté
+    const currentUser = this.authService.currentUserValue;
+    if (currentUser) {
+      const userRequests = this.requests.filter(r => r.userId === currentUser.id);
+      this.requestsSubject.next(userRequests);
+    }
+    return this.requestsSubject.asObservable();
+  }
+
+  getAllRequests(): Observable<Request[]> {
+    // Pour les administrateurs et les managers
+    return new BehaviorSubject<Request[]>(this.requests).asObservable();
+  }
+
+  addLeaveRequest(data: any): void {
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return;
+
+    const workingDays = this.calculateWorkingDays(data.startDate, data.endDate);
     const newRequest: Request = {
-      id: this.requests.length + 1,
-      type: request.type || '',
+      type: 'Congé annuel',
+      description: `Congé du ${data.startDate} au ${data.endDate} (${workingDays} jours ouvrables)`,
+      details: {
+        startDate: data.startDate,
+        endDate: data.endDate,
+        leaveType: data.leaveType,
+        reason: data.reason,
+        workingDays: workingDays
+      },
+      id: Date.now().toString(),
+      userId: currentUser.id,
       status: 'En attente',
-      date: new Date().toISOString().split('T')[0],
-      description: request.description || '',
-      details: request.details || {}
+      date: new Date().toISOString()
     };
 
-    this.requests.unshift(newRequest);
-    this.requestsSubject.next(this.requests);
+    this.requests.push(newRequest);
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+  }
+
+  addTrainingRequest(data: any): void {
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return;
+
+    const newRequest: Request = {
+      type: 'Formation',
+      description: data.title,
+      details: {
+        title: data.title,
+        organization: data.organization,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        trainingType: data.trainingType,
+        objectives: data.objectives,
+        cost: data.cost
+      },
+      id: Date.now().toString(),
+      userId: currentUser.id,
+      status: 'En attente',
+      date: new Date().toISOString()
+    };
+
+    this.requests.push(newRequest);
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+  }
+
+  addCertificateRequest(data: any): void {
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return;
+
+    const newRequest: Request = {
+      type: 'Attestation de travail',
+      description: `Attestation de travail - ${data.purpose === 'other' ? data.otherPurpose : data.purpose}`,
+      details: {
+        purpose: data.purpose === 'other' ? data.otherPurpose : data.purpose,
+        language: data.language,
+        copies: data.copies,
+        comments: data.comments
+      },
+      id: Date.now().toString(),
+      userId: currentUser.id,
+      status: 'En attente',
+      date: new Date().toISOString()
+    };
+
+    this.requests.push(newRequest);
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+  }
+
+  addLoanRequest(data: any): void {
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return;
+
+    const newRequest: Request = {
+      type: 'Prêt',
+      description: `Demande de prêt de ${data.loanAmount}€ sur ${data.duration} mois`,
+      details: {
+        loanAmount: data.loanAmount,
+        loanReason: data.loanReason,
+        monthlyPayment: data.monthlyPayment,
+        duration: data.duration,
+        comments: data.comments
+      },
+      id: Date.now().toString(),
+      userId: currentUser.id,
+      status: 'En attente',
+      date: new Date().toISOString()
+    };
+
+    this.requests.push(newRequest);
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+  }
+
+  addAdvanceRequest(data: any): void {
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return;
+
+    const newRequest: Request = {
+      type: 'Avance',
+      description: `Demande d'avance de ${data.advanceAmount}€ à rembourser le ${data.repaymentDate}`,
+      details: {
+        advanceAmount: data.advanceAmount,
+        advanceReason: data.advanceReason,
+        repaymentDate: data.repaymentDate
+      },
+      id: Date.now().toString(),
+      userId: currentUser.id,
+      status: 'En attente',
+      date: new Date().toISOString()
+    };
+
+    this.requests.push(newRequest);
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+  }
+
+  addDocumentRequest(data: any): void {
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return;
+
+    const newRequest: Request = {
+      type: 'Document',
+      description: `Demande de document - ${data.documentType}`,
+      details: {
+        documentType: data.documentType,
+        urgency: data.urgency,
+        additionalInfo: data.additionalInfo
+      },
+      id: Date.now().toString(),
+      userId: currentUser.id,
+      status: 'En attente',
+      date: new Date().toISOString()
+    };
+
+    this.requests.push(newRequest);
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+  }
+
+  updateLeaveRequest(requestId: string, data: any): boolean {
+    const index = this.requests.findIndex(r => r.id === requestId);
+    if (index === -1) return false;
+
+    // Vérifier que l'utilisateur a le droit de modifier cette demande
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return false;
+
+    const request = this.requests[index];
+    if (request.userId !== currentUser.id && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+      return false;
+    }
+
+    const workingDays = this.calculateWorkingDays(data.startDate, data.endDate);
+    this.requests[index] = {
+      ...this.requests[index],
+      description: `Congé du ${data.startDate} au ${data.endDate} (${workingDays} jours ouvrables)`,
+      details: {
+        startDate: data.startDate,
+        endDate: data.endDate,
+        leaveType: data.leaveType,
+        reason: data.reason,
+        workingDays: workingDays
+      }
+    };
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+    return true;
+  }
+
+  updateTrainingRequest(requestId: string, data: any): boolean {
+    const index = this.requests.findIndex(r => r.id === requestId);
+    if (index === -1) return false;
+
+    // Vérifier que l'utilisateur a le droit de modifier cette demande
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return false;
+
+    const request = this.requests[index];
+    if (request.userId !== currentUser.id && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+      return false;
+    }
+
+    this.requests[index] = {
+      ...this.requests[index],
+      description: data.title,
+      details: {
+        title: data.title,
+        organization: data.organization,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        trainingType: data.trainingType,
+        objectives: data.objectives,
+        cost: data.cost
+      }
+    };
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+    return true;
+  }
+
+  updateCertificateRequest(requestId: string, data: any): boolean {
+    const index = this.requests.findIndex(r => r.id === requestId);
+    if (index === -1) return false;
+
+    // Vérifier que l'utilisateur a le droit de modifier cette demande
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return false;
+
+    const request = this.requests[index];
+    if (request.userId !== currentUser.id && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+      return false;
+    }
+
+    this.requests[index] = {
+      ...this.requests[index],
+      description: `Attestation de travail - ${data.purpose === 'other' ? data.otherPurpose : data.purpose}`,
+      details: {
+        purpose: data.purpose === 'other' ? data.otherPurpose : data.purpose,
+        language: data.language,
+        copies: data.copies,
+        comments: data.comments
+      }
+    };
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+    return true;
+  }
+
+  updateLoanRequest(requestId: string, data: any): boolean {
+    const index = this.requests.findIndex(r => r.id === requestId);
+    if (index === -1) return false;
+
+    // Vérifier que l'utilisateur a le droit de modifier cette demande
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return false;
+
+    const request = this.requests[index];
+    if (request.userId !== currentUser.id && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+      return false;
+    }
+
+    this.requests[index] = {
+      ...this.requests[index],
+      description: `Demande de prêt de ${data.loanAmount}€ sur ${data.duration} mois`,
+      details: {
+        loanAmount: data.loanAmount,
+        loanReason: data.loanReason,
+        monthlyPayment: data.monthlyPayment,
+        duration: data.duration,
+        comments: data.comments
+      }
+    };
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+    return true;
+  }
+
+  updateAdvanceRequest(requestId: string, data: any): boolean {
+    const index = this.requests.findIndex(r => r.id === requestId);
+    if (index === -1) return false;
+
+    // Vérifier que l'utilisateur a le droit de modifier cette demande
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return false;
+
+    const request = this.requests[index];
+    if (request.userId !== currentUser.id && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+      return false;
+    }
+
+    this.requests[index] = {
+      ...this.requests[index],
+      description: `Demande d'avance de ${data.advanceAmount}€ à rembourser le ${data.repaymentDate}`,
+      details: {
+        advanceAmount: data.advanceAmount,
+        advanceReason: data.advanceReason,
+        repaymentDate: data.repaymentDate
+      }
+    };
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+    return true;
+  }
+
+  updateDocumentRequest(requestId: string, data: any): boolean {
+    const index = this.requests.findIndex(r => r.id === requestId);
+    if (index === -1) return false;
+
+    // Vérifier que l'utilisateur a le droit de modifier cette demande
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return false;
+
+    const request = this.requests[index];
+    if (request.userId !== currentUser.id && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+      return false;
+    }
+
+    this.requests[index] = {
+      ...this.requests[index],
+      description: `Demande de document - ${data.documentType}`,
+      details: {
+        documentType: data.documentType,
+        urgency: data.urgency,
+        additionalInfo: data.additionalInfo
+      }
+    };
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+    return true;
+  }
+
+  updateRequestStatus(requestId: string, status: 'En attente' | 'Approuvée' | 'Rejetée'): void {
+    const index = this.requests.findIndex(r => r.id === requestId);
+    if (index !== -1) {
+      this.requests[index].status = status;
+      this.saveRequests();
+      this.getRequests(); // Mettre à jour la liste des demandes
+    }
+  }
+
+  deleteRequest(requestId: string): boolean {
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return false;
+
+    const request = this.requests.find(r => r.id === requestId);
+    if (!request || (request.userId !== currentUser.id && currentUser.role !== 'admin')) {
+      return false;
+    }
+
+    this.requests = this.requests.filter(r => r.id !== requestId);
+    this.saveRequests();
+    this.getRequests(); // Mettre à jour la liste des demandes
+    return true;
+  }
+
+  getRequestById(requestId: string): Request | null {
+    const currentUser = this.authService.currentUserValue;
+    if (!currentUser) return null;
+
+    const request = this.requests.find(r => r.id === requestId);
+    if (!request || (request.userId !== currentUser.id && currentUser.role !== 'admin' && currentUser.role !== 'manager')) {
+      return null;
+    }
+
+    return request;
   }
 
   private calculateWorkingDays(startDate: string, endDate: string): number {
@@ -143,179 +448,7 @@ export class RequestsService {
     return workingDays;
   }
 
-  addLeaveRequest(data: any) {
-    const workingDays = this.calculateWorkingDays(data.startDate, data.endDate);
-    const request: Partial<Request> = {
-      type: 'Congé annuel',
-      description: `Congé du ${data.startDate} au ${data.endDate} (${workingDays} jours ouvrables)`,
-      details: {
-        startDate: data.startDate,
-        endDate: data.endDate,
-        leaveType: data.leaveType,
-        reason: data.reason,
-        workingDays: workingDays
-      }
-    };
-    this.addRequest(request);
-  }
-
-  addTrainingRequest(data: any) {
-    const request: Partial<Request> = {
-      type: 'Formation',
-      description: data.title,
-      details: {
-        title: data.title,
-        organization: data.organization,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        trainingType: data.trainingType,
-        objectives: data.objectives,
-        cost: data.cost
-      }
-    };
-    this.addRequest(request);
-  }
-
-  addCertificateRequest(data: any) {
-    const request: Partial<Request> = {
-      type: 'Attestation de travail',
-      description: `Attestation de travail - ${data.purpose === 'other' ? data.otherPurpose : data.purpose}`,
-      details: {
-        purpose: data.purpose === 'other' ? data.otherPurpose : data.purpose,
-        language: data.language,
-        copies: data.copies,
-        comments: data.comments
-      }
-    };
-    this.addRequest(request);
-  }
-
-  addLoanRequest(data: any) {
-    const request: Partial<Request> = {
-      type: 'Prêt',
-      description: `Demande de prêt de ${data.loanAmount}€ sur ${data.duration} mois`,
-      details: {
-        loanAmount: data.loanAmount,
-        loanReason: data.loanReason,
-        monthlyPayment: data.monthlyPayment,
-        duration: data.duration,
-        comments: data.comments
-      }
-    };
-    this.addRequest(request);
-  }
-
-  addAdvanceRequest(data: any) {
-    const request: Partial<Request> = {
-      type: 'Avance',
-      description: `Demande d'avance de ${data.advanceAmount}€ à rembourser le ${data.repaymentDate}`,
-      details: {
-        advanceAmount: data.advanceAmount,
-        advanceReason: data.advanceReason,
-        repaymentDate: data.repaymentDate
-      }
-    };
-    this.addRequest(request);
-  }
-
-  addDocumentRequest(data: any) {
-    const request: Partial<Request> = {
-      type: 'Document',
-      description: `Demande de document - ${data.documentType}`,
-      details: {
-        documentType: data.documentType,
-        urgency: data.urgency,
-        additionalInfo: data.additionalInfo
-      }
-    };
-    this.addRequest(request);
-  }
-
-  updateLeaveRequest(id: number, data: any) {
-    const request = this.getRequestById(id);
-    if (request) {
-      const workingDays = this.calculateWorkingDays(data.startDate, data.endDate);
-      request.description = `Congé du ${data.startDate} au ${data.endDate} (${workingDays} jours ouvrables)`;
-      request.details = {
-        startDate: data.startDate,
-        endDate: data.endDate,
-        leaveType: data.leaveType,
-        reason: data.reason,
-        workingDays: workingDays
-      };
-      this.updateRequest(request);
-    }
-  }
-
-  updateTrainingRequest(id: number, data: any) {
-    const request = this.getRequestById(id);
-    if (request) {
-      request.description = data.title;
-      request.details = {
-        title: data.title,
-        organization: data.organization,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        trainingType: data.trainingType,
-        objectives: data.objectives,
-        cost: data.cost
-      };
-      this.updateRequest(request);
-    }
-  }
-
-  updateCertificateRequest(id: number, data: any) {
-    const request = this.getRequestById(id);
-    if (request) {
-      request.description = `Attestation de travail - ${data.purpose === 'other' ? data.otherPurpose : data.purpose}`;
-      request.details = {
-        purpose: data.purpose === 'other' ? data.otherPurpose : data.purpose,
-        language: data.language,
-        copies: data.copies,
-        comments: data.comments
-      };
-      this.updateRequest(request);
-    }
-  }
-
-  updateLoanRequest(id: number, data: any) {
-    const request = this.getRequestById(id);
-    if (request) {
-      request.description = `Demande de prêt de ${data.loanAmount}€ sur ${data.duration} mois`;
-      request.details = {
-        loanAmount: data.loanAmount,
-        loanReason: data.loanReason,
-        monthlyPayment: data.monthlyPayment,
-        duration: data.duration,
-        comments: data.comments
-      };
-      this.updateRequest(request);
-    }
-  }
-
-  updateAdvanceRequest(id: number, data: any) {
-    const request = this.getRequestById(id);
-    if (request) {
-      request.description = `Demande d'avance de ${data.advanceAmount}€ à rembourser le ${data.repaymentDate}`;
-      request.details = {
-        advanceAmount: data.advanceAmount,
-        advanceReason: data.advanceReason,
-        repaymentDate: data.repaymentDate
-      };
-      this.updateRequest(request);
-    }
-  }
-
-  updateDocumentRequest(id: number, data: any) {
-    const request = this.getRequestById(id);
-    if (request) {
-      request.description = `Demande de document - ${data.documentType}`;
-      request.details = {
-        documentType: data.documentType,
-        urgency: data.urgency,
-        additionalInfo: data.additionalInfo
-      };
-      this.updateRequest(request);
-    }
+  private saveRequests(): void {
+    localStorage.setItem('requests', JSON.stringify(this.requests));
   }
 }

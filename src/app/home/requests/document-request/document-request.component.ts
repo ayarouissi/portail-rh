@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { FormGroup, FormControl, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RequestsService } from '../requests.service';
 
@@ -12,55 +12,75 @@ import { RequestsService } from '../requests.service';
   styleUrls: ['./document-request.component.scss']
 })
 export class DocumentRequestComponent implements OnInit {
-  documentForm: FormGroup;
+  requestId: string | null = null;
   editMode = false;
-  requestId: number | null = null;
+  documentForm!: FormGroup;
 
   documentTypes = [
-    'Attestation de salaire',
     'Attestation de travail',
-    'Fiche de paie',
-    'Autre document'
+    'Attestation de salaire',
+    'Autre'
+  ];
+
+  urgencyLevels = [
+    { value: 'low', label: 'Basse' },
+    { value: 'normal', label: 'Normale' },
+    { value: 'high', label: 'Haute' }
   ];
 
   constructor(
-    private fb: FormBuilder,
-    private requestsService: RequestsService,
+    private route: ActivatedRoute,
     private router: Router,
-    private route: ActivatedRoute
+    private requestsService: RequestsService
   ) {
-    this.documentForm = this.fb.group({
-      documentType: ['', Validators.required],
-      urgency: [false],
-      additionalInfo: ['']
+    this.initForm();
+  }
+
+  private initForm() {
+    this.documentForm = new FormGroup({
+      documentType: new FormControl('', [Validators.required]),
+      reason: new FormControl('', [Validators.required]),
+      urgency: new FormControl('normal', [Validators.required]),
+      purpose: new FormControl(''),
+      language: new FormControl('fr'),
+      copies: new FormControl(1, [Validators.min(1)]),
+      comments: new FormControl('')
     });
   }
 
   ngOnInit() {
-    const id = this.route.snapshot.params['id'];
+    const id = this.route.snapshot.paramMap.get('id');
     if (id) {
+      this.requestId = id;
       this.editMode = true;
-      this.requestId = +id;
-      const request = this.requestsService.getRequestById(this.requestId);
+      const request = this.requestsService.getRequestById(id);
       if (request && request.details) {
         this.documentForm.patchValue({
-          documentType: request.details.documentType,
-          urgency: request.details.urgency,
-          additionalInfo: request.details.additionalInfo
+          documentType: request.details.documentType || '',
+          reason: request.details.reason || '',
+          urgency: request.details.urgency || 'normal',
+          purpose: request.details.purpose || '',
+          language: request.details.language || 'fr',
+          copies: request.details.copies || 1,
+          comments: request.details.comments || ''
         });
       }
     }
   }
 
   onSubmit() {
-    if (this.documentForm.valid) {
-      if (this.editMode && this.requestId) {
-        this.requestsService.updateDocumentRequest(this.requestId, this.documentForm.value);
-      } else {
-        this.requestsService.addDocumentRequest(this.documentForm.value);
-      }
-      this.router.navigate(['/home/requests']);
+    if (!this.documentForm.valid) {
+      return;
     }
+
+    const formData = this.documentForm.value;
+    
+    if (this.requestId) {
+      this.requestsService.updateDocumentRequest(this.requestId, formData);
+    } else {
+      this.requestsService.addDocumentRequest(formData);
+    }
+    this.router.navigate(['/home/requests']);
   }
 
   onCancel() {

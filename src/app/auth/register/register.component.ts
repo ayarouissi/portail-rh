@@ -3,28 +3,29 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../auth.service';
+import { User } from '../../models/user.model';
 
 @Component({
-  selector: 'app-login',
+  selector: 'app-register',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="login-container">
-      <div class="login-card">
-        <h2>Connexion</h2>
-        <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+    <div class="register-container">
+      <div class="register-card">
+        <h2>Créer un compte</h2>
+        <form (ngSubmit)="onSubmit()" #registerForm="ngForm">
           <div class="form-group">
             <label for="email">Email</label>
             <input
               type="email"
               id="email"
               name="email"
-              [(ngModel)]="email"
+              [(ngModel)]="user.email"
               required
               email
-              #emailInput="ngModel"
+              #email="ngModel"
             >
-            <div class="error-message" *ngIf="emailInput.invalid && emailInput.touched">
+            <div class="error-message" *ngIf="email.invalid && email.touched">
               Email invalide
             </div>
           </div>
@@ -35,34 +36,55 @@ import { AuthService } from '../auth.service';
               type="password"
               id="password"
               name="password"
-              [(ngModel)]="password"
+              [(ngModel)]="user.password"
               required
               minlength="6"
-              #passwordInput="ngModel"
+              #password="ngModel"
             >
-            <div class="error-message" *ngIf="passwordInput.invalid && passwordInput.touched">
+            <div class="error-message" *ngIf="password.invalid && password.touched">
               Le mot de passe doit contenir au moins 6 caractères
             </div>
           </div>
 
-          <div class="error-message" *ngIf="loginError">
-            Email ou mot de passe incorrect
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firstName">Prénom</label>
+              <input
+                type="text"
+                id="firstName"
+                name="firstName"
+                [(ngModel)]="user.firstName"
+                required
+                #firstName="ngModel"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="lastName">Nom</label>
+              <input
+                type="text"
+                id="lastName"
+                name="lastName"
+                [(ngModel)]="user.lastName"
+                required
+                #lastName="ngModel"
+              >
+            </div>
           </div>
 
-          <button type="submit" [disabled]="loginForm.invalid">
-            Se connecter
+          <button type="submit" [disabled]="registerForm.invalid">
+            S'inscrire
           </button>
 
-          <div class="links">
-            <a (click)="goToForgotPassword()">Mot de passe oublié ?</a>
-            <a (click)="goToRegister()">Créer un compte</a>
+          <div class="login-link">
+            Déjà inscrit ? <a (click)="goToLogin()">Se connecter</a>
           </div>
         </form>
       </div>
     </div>
   `,
   styles: [`
-    .login-container {
+    .register-container {
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -71,13 +93,13 @@ import { AuthService } from '../auth.service';
       padding: 2rem;
     }
 
-    .login-card {
+    .register-card {
       background: white;
       padding: 2rem;
       border-radius: 12px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       width: 100%;
-      max-width: 400px;
+      max-width: 500px;
     }
 
     h2 {
@@ -90,6 +112,13 @@ import { AuthService } from '../auth.service';
       margin-bottom: 1.5rem;
     }
 
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
     label {
       display: block;
       margin-bottom: 0.5rem;
@@ -97,7 +126,7 @@ import { AuthService } from '../auth.service';
       font-size: 0.9rem;
     }
 
-    input {
+    input, select, textarea {
       width: 100%;
       padding: 0.75rem;
       border: 1px solid #ddd;
@@ -138,11 +167,10 @@ import { AuthService } from '../auth.service';
       }
     }
 
-    .links {
-      display: flex;
-      justify-content: space-between;
+    .login-link {
+      text-align: center;
       margin-top: 1.5rem;
-      font-size: 0.9rem;
+      color: #7f8c8d;
 
       a {
         color: #3498db;
@@ -154,12 +182,22 @@ import { AuthService } from '../auth.service';
         }
       }
     }
+
+    @media (max-width: 600px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
   `]
 })
-export class LoginComponent {
-  email: string = '';
-  password: string = '';
-  loginError: boolean = false;
+export class RegisterComponent {
+  user: Partial<User> = {
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    role: 'employee'
+  };
 
   constructor(
     private authService: AuthService,
@@ -167,22 +205,20 @@ export class LoginComponent {
   ) {}
 
   onSubmit() {
-    if (this.email && this.password) {
-      const success = this.authService.login(this.email, this.password);
+    if (this.user.email && this.user.password && this.user.firstName && this.user.lastName) {
+      const success = this.authService.register(this.user as Omit<User, 'id' | 'personalInfo' | 'professionalInfo'>);
       
       if (success) {
+        // Connecter automatiquement l'utilisateur après l'inscription
+        this.authService.login(this.user.email, this.user.password);
         this.router.navigate(['/home']);
       } else {
-        this.loginError = true;
+        alert('Cet email est déjà utilisé');
       }
     }
   }
 
-  goToForgotPassword() {
-    this.router.navigate(['/forgot-password']);
-  }
-
-  goToRegister() {
-    this.router.navigate(['/register']);
+  goToLogin() {
+    this.router.navigate(['/login']);
   }
 }

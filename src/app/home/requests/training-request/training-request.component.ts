@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { RequestsService } from '../requests.service';
 
 @Component({
@@ -12,6 +12,7 @@ import { RequestsService } from '../requests.service';
   styleUrls: ['./training-request.component.scss']
 })
 export class TrainingRequestComponent implements OnInit {
+  requestId: string | null = null;
   request = {
     title: '',
     organization: '',
@@ -23,12 +24,18 @@ export class TrainingRequestComponent implements OnInit {
     documents: [] as File[]
   };
 
+  trainingTypes = [
+    'Formation technique',
+    'Formation managériale',
+    'Formation linguistique',
+    'Autre'
+  ];
+
   editMode = false;
-  requestId: number | null = null;
 
   constructor(
-    private router: Router,
     private route: ActivatedRoute,
+    private router: Router,
     private requestsService: RequestsService
   ) {}
 
@@ -36,8 +43,8 @@ export class TrainingRequestComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.editMode = true;
-      this.requestId = Number(id);
-      const existingRequest = this.requestsService.getRequestById(this.requestId);
+      this.requestId = id;
+      const existingRequest = this.requestsService.getRequestById(id);
       if (existingRequest && existingRequest.details) {
         this.request = {
           title: existingRequest.details.title || '',

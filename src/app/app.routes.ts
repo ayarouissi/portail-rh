@@ -3,9 +3,10 @@ import { HomeComponent } from './home/home.component';
 import { RequestsComponent } from './home/requests/requests.component';
 import { ProfileComponent } from './home/profile/profile.component';
 import { LoginComponent } from './auth/login/login.component';
-import { ProfilesListComponent } from './home/profiles-list/profiles-list.component';
+import { RegisterComponent } from './auth/register/register.component';
 import { WelcomeComponent } from './home/welcome/welcome.component';
 import { ForgotPasswordComponent } from './auth/forgot-password/forgot-password.component';
+import { ResetPasswordComponent } from './auth/reset-password/reset-password.component';
 import { NewRequestComponent } from './home/requests/new-request/new-request.component';
 import { LeaveRequestComponent } from './home/requests/leave-request/leave-request.component';
 import { TrainingRequestComponent } from './home/requests/training-request/training-request.component';
@@ -14,14 +15,18 @@ import { RequestDetailsComponent } from './home/requests/request-details/request
 import { LoanRequestComponent } from './home/requests/loan-request/loan-request.component';
 import { AdvanceRequestComponent } from './home/requests/advance-request/advance-request.component';
 import { DocumentRequestComponent } from './home/requests/document-request/document-request.component';
+import { AuthGuard } from './auth/auth.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
+  { path: 'register', component: RegisterComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
+  { path: 'reset-password/:token', component: ResetPasswordComponent },
   { 
     path: 'home', 
     component: HomeComponent,
+    canActivate: [AuthGuard],
     children: [
       { path: '', redirectTo: 'welcome', pathMatch: 'full' },
       { path: 'welcome', component: WelcomeComponent },
@@ -40,8 +45,7 @@ export const routes: Routes = [
       { path: 'requests/document', component: DocumentRequestComponent },
       { path: 'requests/document/edit/:id', component: DocumentRequestComponent },
       { path: 'requests/:id', component: RequestDetailsComponent },
-      { path: 'profile', component: ProfileComponent },
-      { path: 'profiles-list', component: ProfilesListComponent }
+      { path: 'profile', component: ProfileComponent }
     ]
   }
 ];

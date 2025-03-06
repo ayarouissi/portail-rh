@@ -169,6 +169,7 @@ import { RequestsService } from '../requests.service';
   `]
 })
 export class WorkCertificateRequestComponent implements OnInit {
+  requestId: string | null = null;
   request = {
     purpose: '',
     otherPurpose: '',
@@ -179,7 +180,6 @@ export class WorkCertificateRequestComponent implements OnInit {
   };
 
   editMode = false;
-  requestId: number | null = null;
 
   constructor(
     private router: Router,
@@ -190,9 +190,9 @@ export class WorkCertificateRequestComponent implements OnInit {
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
+      this.requestId = id;
       this.editMode = true;
-      this.requestId = Number(id);
-      const existingRequest = this.requestsService.getRequestById(this.requestId);
+      const existingRequest = this.requestsService.getRequestById(id);
       if (existingRequest && existingRequest.details) {
         this.request = {
           purpose: existingRequest.details.purpose || '',
@@ -214,7 +214,7 @@ export class WorkCertificateRequestComponent implements OnInit {
   }
 
   onSubmit() {
-    if (this.editMode && this.requestId) {
+    if (this.requestId) {
       this.requestsService.updateCertificateRequest(this.requestId, this.request);
     } else {
       this.requestsService.addCertificateRequest(this.request);

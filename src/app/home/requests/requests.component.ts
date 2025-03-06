@@ -51,11 +51,11 @@ export class RequestsComponent implements OnInit {
     this.router.navigate(['/home/requests/new']);
   }
 
-  viewDetails(id: number) {
+  viewDetails(id: string) {
     this.router.navigate(['/home/requests', id]);
   }
 
-  editRequest(id: number, type: string) {
+  editRequest(id: string, type: string) {
     switch (type) {
       case 'Congé annuel':
         this.router.navigate(['/home/requests/leave/edit', id]);

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { FormGroup, FormControl, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RequestsService } from '../requests.service';
 
@@ -12,48 +12,51 @@ import { RequestsService } from '../requests.service';
   styleUrls: ['./advance-request.component.scss']
 })
 export class AdvanceRequestComponent implements OnInit {
-  advanceForm: FormGroup;
+  requestId: string | null = null;
   editMode = false;
-  requestId: number | null = null;
+  advanceForm: FormGroup;
 
   constructor(
-    private fb: FormBuilder,
-    private requestsService: RequestsService,
+    private route: ActivatedRoute,
     private router: Router,
-    private route: ActivatedRoute
+    private requestsService: RequestsService
   ) {
-    this.advanceForm = this.fb.group({
-      advanceAmount: ['', [Validators.required, Validators.min(0)]],
-      advanceReason: ['', Validators.required],
-      repaymentDate: ['', Validators.required]
+    this.advanceForm = new FormGroup({
+      advanceAmount: new FormControl(0, [Validators.required, Validators.min(0)]),
+      advanceReason: new FormControl('', [Validators.required]),
+      repaymentDate: new FormControl('', [Validators.required])
     });
   }
 
   ngOnInit() {
-    const id = this.route.snapshot.params['id'];
+    const id = this.route.snapshot.paramMap.get('id');
     if (id) {
+      this.requestId = id;
       this.editMode = true;
-      this.requestId = +id;
-      const request = this.requestsService.getRequestById(this.requestId);
+      const request = this.requestsService.getRequestById(id);
       if (request && request.details) {
         this.advanceForm.patchValue({
-          advanceAmount: request.details.advanceAmount,
-          advanceReason: request.details.advanceReason,
-          repaymentDate: request.details.repaymentDate
+          advanceAmount: request.details.advanceAmount || 0,
+          advanceReason: request.details.advanceReason || '',
+          repaymentDate: request.details.repaymentDate || ''
         });
       }
     }
   }
 
   onSubmit() {
-    if (this.advanceForm.valid) {
-      if (this.editMode && this.requestId) {
-        this.requestsService.updateAdvanceRequest(this.requestId, this.advanceForm.value);
-      } else {
-        this.requestsService.addAdvanceRequest(this.advanceForm.value);
-      }
-      this.router.navigate(['/home/requests']);
+    if (!this.advanceForm.valid) {
+      return;
     }
+
+    const formData = this.advanceForm.value;
+    
+    if (this.requestId) {
+      this.requestsService.updateAdvanceRequest(this.requestId, formData);
+    } else {
+      this.requestsService.addAdvanceRequest(formData);
+    }
+    this.router.navigate(['/home/requests']);
   }
 
   onCancel() {

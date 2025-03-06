@@ -50,11 +50,11 @@
       </div>
 
       <div class="request-actions">
-        <button class="btn-details" (click)="viewDetails(request.id)">
+        <button class="btn-details" (click)="viewDetails(request.id.toString())">
           <i class="fas fa-eye"></i>
           Voir détails
         </button>
-        <button class="btn-edit" *ngIf="request.status === 'En attente'" (click)="editRequest(request.id, request.type)">
+        <button class="btn-edit" *ngIf="request.status === 'En attente'" (click)="editRequest(request.id.toString(), request.type)">
           <i class="fas fa-edit"></i>
           Modifier
         </button>

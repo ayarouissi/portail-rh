@@ -1,28 +1,38 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { PasswordResetService } from '../password-reset.service';
 
 @Component({
-  selector: 'app-forgot-password',
+  selector: 'app-reset-password',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="forgot-password-container">
+    <div class="reset-password-container">
       <div class="form-box">
-        <h2>Réinitialisation du mot de passe</h2>
-        <p class="instruction">Entrez votre adresse e-mail pour réinitialiser votre mot de passe</p>
+        <h2>Nouveau mot de passe</h2>
+        <p class="instruction">Veuillez entrer votre nouveau mot de passe</p>
         
-        <form (ngSubmit)="onSubmit()">
+        <form (ngSubmit)="onSubmit()" *ngIf="!tokenInvalid">
           <div class="input-box">
             <input 
-              type="email" 
-              [(ngModel)]="email" 
-              name="email" 
-              placeholder="Adresse e-mail"
+              type="password" 
+              [(ngModel)]="password" 
+              name="password" 
+              placeholder="Nouveau mot de passe"
               required>
-            <i class='bx bxs-envelope'></i>
+            <i class='bx bxs-lock'></i>
+          </div>
+
+          <div class="input-box">
+            <input 
+              type="password" 
+              [(ngModel)]="confirmPassword" 
+              name="confirmPassword" 
+              placeholder="Confirmer le mot de passe"
+              required>
+            <i class='bx bxs-lock'></i>
           </div>
 
           <div class="error-message" *ngIf="errorMessage">
@@ -35,18 +45,21 @@ import { PasswordResetService } from '../password-reset.service';
 
           <button type="submit" class="btn" [disabled]="isLoading">
             <span *ngIf="!isLoading">Réinitialiser le mot de passe</span>
-            <span *ngIf="isLoading">Envoi en cours...</span>
+            <span *ngIf="isLoading">Réinitialisation en cours...</span>
           </button>
-          
-          <p class="back-to-login">
-            <a (click)="backToLogin()">Retour à la connexion</a>
-          </p>
         </form>
+
+        <div class="error-box" *ngIf="tokenInvalid">
+          <i class='bx bx-error-circle'></i>
+          <h3>Lien invalide ou expiré</h3>
+          <p>Le lien de réinitialisation du mot de passe est invalide ou a expiré.</p>
+          <button class="btn" (click)="backToForgotPassword()">Demander un nouveau lien</button>
+        </div>
       </div>
     </div>
   `,
   styles: [`
-    .forgot-password-container {
+    .reset-password-container {
       display: flex;
       justify-content: center;
       align-items: center;
@@ -136,75 +149,83 @@ import { PasswordResetService } from '../password-reset.service';
       cursor: not-allowed;
     }
 
-    .back-to-login {
+    .error-box {
       text-align: center;
-      margin-top: 20px;
-    }
+      color: #dc3545;
 
-    .back-to-login a {
-      color: #007bff;
-      text-decoration: none;
-      cursor: pointer;
-    }
+      i {
+        font-size: 48px;
+        margin-bottom: 15px;
+      }
 
-    .back-to-login a:hover {
-      text-decoration: underline;
+      h3 {
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 20px;
+        color: #666;
+      }
     }
   `]
 })
-export class ForgotPasswordComponent {
-  email: string = '';
+export class ResetPasswordComponent implements OnInit {
+  token: string = '';
+  password: string = '';
+  confirmPassword: string = '';
   errorMessage: string = '';
   successMessage: string = '';
   isLoading: boolean = false;
+  tokenInvalid: boolean = false;
 
   constructor(
+    private route: ActivatedRoute,
     private router: Router,
     private passwordResetService: PasswordResetService
   ) {}
+
+  ngOnInit() {
+    this.token = this.route.snapshot.paramMap.get('token') || '';
+    
+    if (!this.token || !this.passwordResetService.validateResetToken(this.token)) {
+      this.tokenInvalid = true;
+    }
+  }
 
   onSubmit() {
     this.errorMessage = '';
     this.successMessage = '';
 
-    if (!this.email) {
-      this.errorMessage = 'Veuillez entrer votre adresse e-mail';
+    if (!this.password || !this.confirmPassword) {
+      this.errorMessage = 'Veuillez remplir tous les champs';
       return;
     }
 
-    if (!this.isValidEmail(this.email)) {
-      this.errorMessage = 'Veuillez entrer une adresse e-mail valide';
+    if (this.password !== this.confirmPassword) {
+      this.errorMessage = 'Les mots de passe ne correspondent pas';
+      return;
+    }
+
+    if (this.password.length < 6) {
+      this.errorMessage = 'Le mot de passe doit contenir au moins 6 caractères';
       return;
     }
 
     this.isLoading = true;
 
-    // Générer un token de réinitialisation
-    const resetToken = this.passwordResetService.generateResetToken(this.email);
-
-    if (!resetToken) {
-      this.errorMessage = 'Aucun compte n\'est associé à cette adresse e-mail';
-      this.isLoading = false;
-      return;
+    if (this.passwordResetService.resetPassword(this.token, this.password)) {
+      this.successMessage = 'Votre mot de passe a été réinitialisé avec succès';
+      setTimeout(() => {
+        this.router.navigate(['/login']);
+      }, 2000);
+    } else {
+      this.errorMessage = 'Une erreur est survenue lors de la réinitialisation du mot de passe';
     }
 
-    // Envoyer l'email de réinitialisation
-    this.passwordResetService.sendResetEmail(this.email, resetToken);
-    
-    this.successMessage = 'Un e-mail de réinitialisation a été envoyé à ' + this.email;
-    
-    setTimeout(() => {
-      this.isLoading = false;
-      this.router.navigate(['/login']);
-    }, 3000);
+    this.isLoading = false;
   }
 
-  backToLogin() {
-    this.router.navigate(['/login']);
-  }
-
-  private isValidEmail(email: string): boolean {
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return emailRegex.test(email);
+  backToForgotPassword() {
+    this.router.navigate(['/forgot-password']);
   }
 }

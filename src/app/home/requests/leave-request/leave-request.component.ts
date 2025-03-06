@@ -21,7 +21,7 @@ export class LeaveRequestComponent implements OnInit {
   };
 
   editMode = false;
-  requestId: number | null = null;
+  requestId: string | null = null;
 
   constructor(
     private router: Router,
@@ -33,7 +33,7 @@ export class LeaveRequestComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.editMode = true;
-      this.requestId = Number(id);
+      this.requestId = id;
       const existingRequest = this.requestsService.getRequestById(this.requestId);
       if (existingRequest && existingRequest.details) {
         this.request = {

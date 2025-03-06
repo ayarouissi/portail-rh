@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../auth/auth.service';
+import { User } from '../../models/user.model';
 
 @Component({
   selector: 'app-profile',
@@ -9,37 +11,75 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss']
 })
-export class ProfileComponent {
-  userProfile = {
-    name: 'Eya Ghraba',
-    email: 'gheya63@example.com',
-    phone: '+216 XX XXX XXX',
-    department: 'Ressources Humaines',
-    position: 'Responsable RH',
-    birthDate: '1990-01-01',
-    hireDate: '2020-01-01',
-    employeeId: 'EMP001',
-    image: ''
-  };
+export class ProfileComponent implements OnInit {
+  user: User | null = null;
+  editMode: boolean = false;
+
+  maritalStatusOptions = [
+    { value: 'single', label: 'Célibataire' },
+    { value: 'married', label: 'Marié(e)' },
+    { value: 'divorced', label: 'Divorcé(e)' },
+    { value: 'widowed', label: 'Veuf/Veuve' }
+  ];
+
+  contractTypeOptions = [
+    { value: 'cdi', label: 'CDI' },
+    { value: 'cdd', label: 'CDD' },
+    { value: 'internship', label: 'Stage' },
+    { value: 'temporary', label: 'Intérim' }
+  ];
+
+  constructor(private authService: AuthService) {}
+
+  ngOnInit() {
+    this.user = this.authService.currentUserValue;
+  }
 
   onImageChange(event: any) {
-    const file = event.target.files[0];
-    if (file) {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
       const reader = new FileReader();
+      
       reader.onload = (e: any) => {
-        this.userProfile.image = e.target.result;
+        if (this.user) {
+          this.user.profileImage = e.target.result;
+          this.authService.updateUserProfile(this.user.id, { profileImage: this.user.profileImage });
+        }
       };
+
       reader.readAsDataURL(file);
     }
   }
 
+  removeProfileImage() {
+    if (this.user) {
+      this.user.profileImage = '';
+      this.authService.updateUserProfile(this.user.id, { profileImage: '' });
+    }
+  }
+
+  toggleEditMode() {
+    this.editMode = !this.editMode;
+  }
+
   saveProfile() {
-    console.log('Saving profile...', this.userProfile);
-    // Implement save logic here
+    if (this.user) {
+      this.authService.updateUserProfile(this.user.id, this.user);
+      this.editMode = false;
+    }
+  }
+
+  cancelEdit() {
+    this.user = this.authService.currentUserValue;
+    this.editMode = false;
+  }
+
+  formatDate(date: Date): string {
+    return new Date(date).toISOString().split('T')[0];
   }
 
   changePassword() {
+    // Cette fonctionnalité sera implémentée plus tard
     console.log('Changing password...');
-    // Implement password change logic here
   }
 }
